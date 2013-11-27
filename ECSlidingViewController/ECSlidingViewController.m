@@ -929,4 +929,24 @@
     self.coordinatorInteractionEnded = handler;
 }
 
+#pragma mark AutoRotation
+
+- (BOOL)shouldAutorotate {
+    return [self.topViewController shouldAutorotate];
+}
+
+- (NSUInteger)supportedInterfaceOrientations{
+    return [self.topViewController supportedInterfaceOrientations];
+}
+
+- (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)toInterfaceOrientation{
+    return [self.topViewController shouldAutorotateToInterfaceOrientation:toInterfaceOrientation];
+}
+
+- (UIInterfaceOrientation)preferredInterfaceOrientationForPresentation
+{
+    return [self.topViewController preferredInterfaceOrientationForPresentation];
+}
+
+
 @end
