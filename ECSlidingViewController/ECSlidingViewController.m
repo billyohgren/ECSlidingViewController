@@ -929,6 +929,7 @@
     self.coordinatorInteractionEnded = handler;
 }
 
+/*
 #pragma mark AutoRotation
 
 - (BOOL)shouldAutorotate {
@@ -948,5 +949,5 @@
     return [self.topViewController preferredInterfaceOrientationForPresentation];
 }
 
-
+*/
 @end
