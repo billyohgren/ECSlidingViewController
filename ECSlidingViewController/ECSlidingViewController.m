@@ -34,7 +34,6 @@
 @property (nonatomic, strong) id<UIViewControllerAnimatedTransitioning> currentAnimationController;
 @property (nonatomic, strong) id<UIViewControllerInteractiveTransitioning> currentInteractiveTransition;
 @property (nonatomic, strong) UIView *gestureView;
-@property (nonatomic, strong) UIPanGestureRecognizer *resetPanGesture;
 @property (nonatomic, strong) NSMapTable *customAnchoredGesturesViewMap;
 @property (nonatomic, assign) CGFloat currentAnimationPercentage;
 @property (nonatomic, assign) BOOL preserveLeftPeekAmount;
@@ -175,18 +174,9 @@
     }
 }
 
-- (void)viewWillLayoutSubviews {
-    if (self.currentOperation == ECSlidingViewControllerOperationNone) {
-        self.gestureView.frame = [self topViewCalculatedFrameForPosition:self.currentTopViewPosition];
-        self.topViewController.view.frame = [self topViewCalculatedFrameForPosition:self.currentTopViewPosition];
-        self.underLeftViewController.view.frame = [self underLeftViewCalculatedFrame];
-        self.underRightViewController.view.frame = [self underRightViewCalculatedFrame];
-    }
-}
-
 - (void)viewDidLayoutSubviews {
     if (self.currentOperation == ECSlidingViewControllerOperationNone) {
-        [self topViewCalculatedFrameForPosition:self.currentTopViewPosition];
+        self.gestureView.frame = [self topViewCalculatedFrameForPosition:self.currentTopViewPosition];
         self.topViewController.view.frame = [self topViewCalculatedFrameForPosition:self.currentTopViewPosition];
         self.underLeftViewController.view.frame = [self underLeftViewCalculatedFrame];
         self.underRightViewController.view.frame = [self underRightViewCalculatedFrame];
@@ -258,7 +248,6 @@
         
         if ([self isViewLoaded]) {
             [_topViewController beginAppearanceTransition:YES animated:NO];
-            _topViewController.view.frame = [self topViewCalculatedFrameForPosition:self.currentTopViewPosition];
             [self.view addSubview:_topViewController.view];
             [_topViewController endAppearanceTransition];
         }
@@ -386,14 +375,6 @@
     _gestureView = [[UIView alloc] initWithFrame:CGRectZero];
     
     return _gestureView;
-}
-
-- (UIPanGestureRecognizer *)resetPanGesture {
-    if (_resetPanGesture) return _resetPanGesture;
-    
-    _resetPanGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(detectPanGestureRecognizer:)];
-    
-    return _resetPanGesture;
 }
 
 - (NSMapTable *)customAnchoredGesturesViewMap {
@@ -580,6 +561,8 @@
 - (void)animateOperation:(ECSlidingViewControllerOperation)operation {
     if (![self operationIsValid:operation]) return;
     if (self.transitionInProgress) return;
+
+    self.view.userInteractionEnabled = NO;
     
     self.transitionInProgress = YES;
     
@@ -697,25 +680,28 @@
             topView.userInteractionEnabled = NO;
         } else {
             self.gestureView.frame = topView.frame;
-            for (UIGestureRecognizer *gesture in self.gestureView.gestureRecognizers) {
-                [self.gestureView removeGestureRecognizer:gesture];
-            }
 
-            if (self.topViewAnchoredGesture & ECSlidingViewControllerAnchoredGesturePanning && self.panGesture.view && self.panGesture.isEnabled) {
-                [self.gestureView addGestureRecognizer:self.resetPanGesture];
+            if (self.topViewAnchoredGesture & ECSlidingViewControllerAnchoredGesturePanning &&
+                ![self.customAnchoredGesturesViewMap objectForKey:self.panGesture]) {
+                [self.customAnchoredGesturesViewMap setObject:self.panGesture.view forKey:self.panGesture];
+                [self.panGesture.view removeGestureRecognizer:self.panGesture];
+                [self.gestureView addGestureRecognizer:self.panGesture];
                 if (!self.gestureView.superview) [self.view insertSubview:self.gestureView aboveSubview:topView];
             }
 
-            if (self.topViewAnchoredGesture & ECSlidingViewControllerAnchoredGestureTapping) {
+            if (self.topViewAnchoredGesture & ECSlidingViewControllerAnchoredGestureTapping &&
+                ![self.customAnchoredGesturesViewMap objectForKey:self.resetTapGesture]) {
                 [self.gestureView addGestureRecognizer:self.resetTapGesture];
                 if (!self.gestureView.superview) [self.view insertSubview:self.gestureView aboveSubview:topView];
             }
             
             if (self.topViewAnchoredGesture & ECSlidingViewControllerAnchoredGestureCustom) {
                 for (UIGestureRecognizer *gesture in self.customAnchoredGestures) {
-                    [self.customAnchoredGesturesViewMap setObject:gesture.view forKey:gesture];
-                    [gesture.view removeGestureRecognizer:gesture];
-                    [self.gestureView addGestureRecognizer:gesture];
+                    if (![self.customAnchoredGesturesViewMap objectForKey:gesture]) {
+                        [self.customAnchoredGesturesViewMap setObject:gesture.view forKey:gesture];
+                        [gesture.view removeGestureRecognizer:gesture];
+                        [self.gestureView addGestureRecognizer:gesture];
+                    }
                 }
                 if (!self.gestureView.superview) [self.view insertSubview:self.gestureView aboveSubview:topView];
             }
@@ -725,7 +711,15 @@
         [self.gestureView removeFromSuperview];
         for (UIGestureRecognizer *gesture in self.customAnchoredGestures) {
             UIView *originalView = [self.customAnchoredGesturesViewMap objectForKey:gesture];
-            if (![originalView.gestureRecognizers containsObject:gesture]) [originalView addGestureRecognizer:gesture];
+            if ([originalView isDescendantOfView:self.topViewController.view]) {
+                [originalView addGestureRecognizer:gesture];
+            }
+        }
+        if ([self.customAnchoredGesturesViewMap objectForKey:self.panGesture]) {
+            UIView *view = [self.customAnchoredGesturesViewMap objectForKey:self.panGesture];
+            if ([view isDescendantOfView:self.topViewController.view]) {
+                [view addGestureRecognizer:self.panGesture];
+            }
         }
         [self.customAnchoredGesturesViewMap removeAllObjects];
     }
@@ -739,6 +733,7 @@
     }
     
     [self.defaultInteractiveTransition updateTopViewHorizontalCenterWithRecognizer:recognizer];
+    _isInteractive = NO;
 }
 
 #pragma mark - UIViewControllerTransitionCoordinatorContext
@@ -833,9 +828,9 @@
     if (self.animationComplete) self.animationComplete();
     self.animationComplete = nil;
     
-    [self endAppearanceTransitionForOperation:self.currentOperation isCancelled:[self transitionWasCancelled]];
     [self setNeedsStatusBarAppearanceUpdate];
     [self updateTopViewGestures];
+    [self endAppearanceTransitionForOperation:self.currentOperation isCancelled:[self transitionWasCancelled]];
     
     _transitionWasCancelled          = NO;
     _isInteractive                   = NO;
@@ -845,6 +840,7 @@
     self.currentAnimationPercentage  = 0;
     self.currentOperation            = ECSlidingViewControllerOperationNone;
     self.transitionInProgress        = NO;
+    self.view.userInteractionEnabled = YES;
     [UIViewController attemptRotationToDeviceOrientation];
 }
 
@@ -864,10 +860,10 @@
         if (key == UITransitionContextFromViewControllerKey) return self.topViewController;
         if (key == UITransitionContextToViewControllerKey)   return self.underLeftViewController;
     } else if (self.currentOperation == ECSlidingViewControllerOperationResetFromLeft) {
-        if (key == UITransitionContextFromViewControllerKey) return self.underLeftViewController;
+        if (key == UITransitionContextFromViewControllerKey) return self.underRightViewController;
         if (key == UITransitionContextToViewControllerKey)   return self.topViewController;
     } else if (self.currentOperation == ECSlidingViewControllerOperationResetFromRight) {
-        if (key == UITransitionContextFromViewControllerKey) return self.underRightViewController;
+        if (key == UITransitionContextFromViewControllerKey) return self.underLeftViewController;
         if (key == UITransitionContextToViewControllerKey)   return self.topViewController;
     }
     
@@ -877,10 +873,8 @@
 - (CGRect)initialFrameForViewController:(UIViewController *)vc {
     if (self.currentOperation == ECSlidingViewControllerOperationAnchorLeft) {
         if ([vc isEqual:self.topViewController]) return [self topViewCalculatedFrameForPosition:ECSlidingViewControllerTopViewPositionCentered];
-        if ([vc isEqual:self.underRightViewController]) return [self underRightViewCalculatedFrame];
     } else if (self.currentOperation == ECSlidingViewControllerOperationAnchorRight) {
         if ([vc isEqual:self.topViewController]) return [self topViewCalculatedFrameForPosition:ECSlidingViewControllerTopViewPositionCentered];
-        if ([vc isEqual:self.underLeftViewController])  return [self underLeftViewCalculatedFrame];
     } else if (self.currentOperation == ECSlidingViewControllerOperationResetFromLeft) {
         if ([vc isEqual:self.topViewController])        return [self topViewCalculatedFrameForPosition:ECSlidingViewControllerTopViewPositionAnchoredLeft];
         if ([vc isEqual:self.underRightViewController]) return [self underRightViewCalculatedFrame];

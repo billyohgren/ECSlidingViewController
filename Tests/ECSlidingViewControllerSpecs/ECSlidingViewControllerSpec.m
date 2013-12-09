@@ -114,6 +114,74 @@ describe(@"ECSlidingViewController", ^{
             [[[slidingViewController viewControllerForKey:ECTransitionContextUnderRightControllerKey]
               should] equal:underRightViewController];
         });
+        
+        context(@"reset from left operation", ^{
+            beforeEach(^{
+                [slidingViewController setValue:[NSNumber numberWithInteger:ECSlidingViewControllerOperationResetFromLeft]
+                                         forKey:@"currentOperation"];
+            });
+
+            it(@"returns the underRightViewController", ^{
+                [[[slidingViewController viewControllerForKey:UITransitionContextFromViewControllerKey]
+                  should] equal:underRightViewController];
+            });
+
+            it(@"returns the topViewController", ^{
+                [[[slidingViewController viewControllerForKey:UITransitionContextToViewControllerKey]
+                  should] equal:topViewController];
+            });
+        });
+
+        context(@"reset from right operation", ^{
+            beforeEach(^{
+                [slidingViewController setValue:[NSNumber numberWithInteger:ECSlidingViewControllerOperationResetFromRight]
+                                         forKey:@"currentOperation"];
+            });
+
+            it(@"returns the underLeftViewController", ^{
+                [[[slidingViewController viewControllerForKey:UITransitionContextFromViewControllerKey]
+                  should] equal:underLeftViewController];
+            });
+
+            it(@"returns the topViewController", ^{
+                [[[slidingViewController viewControllerForKey:UITransitionContextToViewControllerKey]
+                  should] equal:topViewController];
+            });
+        });
+
+        context(@"anchor right operation", ^{
+            beforeEach(^{
+                [slidingViewController setValue:[NSNumber numberWithInteger:ECSlidingViewControllerOperationAnchorRight]
+                                         forKey:@"currentOperation"];
+            });
+
+            it(@"returns the topViewController", ^{
+                [[[slidingViewController viewControllerForKey:UITransitionContextFromViewControllerKey]
+                  should] equal:topViewController];
+            });
+
+            it(@"returns the underLeftViewController", ^{
+                [[[slidingViewController viewControllerForKey:UITransitionContextToViewControllerKey]
+                  should] equal:underLeftViewController];
+            });
+        });
+
+        context(@"anchor left operation", ^{
+            beforeEach(^{
+                [slidingViewController setValue:[NSNumber numberWithInteger:ECSlidingViewControllerOperationAnchorLeft]
+                                         forKey:@"currentOperation"];
+            });
+
+            it(@"returns the topViewController", ^{
+                [[[slidingViewController viewControllerForKey:UITransitionContextFromViewControllerKey]
+                  should] equal:topViewController];
+            });
+
+            it(@"returns the underRightViewController", ^{
+                [[[slidingViewController viewControllerForKey:UITransitionContextToViewControllerKey]
+                  should] equal:underRightViewController];
+            });
+        });
     });
     
     describe(@"initialFrameForViewController:", ^{
@@ -179,7 +247,7 @@ describe(@"ECSlidingViewController", ^{
             
             it(@"starts the under left view visible", ^{
                 [[theValue([slidingViewController initialFrameForViewController:underLeftViewController])
-                  should] equal:theValue(CGRectMake(0, 0, 320, 480))];
+                  should] equal:theValue(CGRectZero)];
             });
             
             it(@"starts the under right view hidden", ^{
@@ -206,7 +274,7 @@ describe(@"ECSlidingViewController", ^{
             
             it(@"starts the under right view visible", ^{
                 [[theValue([slidingViewController initialFrameForViewController:underRightViewController])
-                  should] equal:theValue(CGRectMake(0, 0, 320, 480))];
+                  should] equal:theValue(CGRectZero)];
             });
         });
     });
